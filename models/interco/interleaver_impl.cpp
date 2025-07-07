@@ -49,6 +49,7 @@ private:
   int nb_masters;
   int interleaving_bits;
   int stage_bits;
+  int enable_shift;
   uint64_t offset_mask;
   uint64_t remove_offset;
 };
@@ -66,6 +67,7 @@ interleaver::interleaver(vp::ComponentConf &config)
   stage_bits = get_js_config()->get_child_int("stage_bits");
   interleaving_bits = get_js_config()->get_child_int("interleaving_bits");
   remove_offset = get_js_config()->get_child_int("remove_offset");
+  enable_shift = get_js_config()->get_child_int("enable_shift");
 
   if (stage_bits == 0)
   {
@@ -107,7 +109,7 @@ vp::IoReqStatus interleaver::req(vp::Block *__this, vp::IoReq *req)
   uint64_t init_size = size;
   uint64_t init_offset = offset;
 
-  _this->trace.msg("Received IO req (offset: 0x%llx, size: 0x%llx, is_write: %d)\n", offset, size, is_write);
+  _this->trace.msg("Received IO req (offset: 0x%llx, size: 0x%llx, is_write: %d, data value: %d)\n", offset, size, is_write, *((uint32_t *)data));
  
   int port_size = 1<<_this->interleaving_bits;
   int align_size = offset & (port_size - 1);
@@ -125,7 +127,11 @@ vp::IoReqStatus interleaver::req(vp::Block *__this, vp::IoReq *req)
     if (loop_size > size) loop_size = size;
 
     int output_id = (offset >> _this->interleaving_bits) & ((1 << _this->stage_bits) - 1);
-    uint64_t new_offset = ((offset & _this->offset_mask) >> _this->stage_bits) + (offset & ((1<<_this->interleaving_bits)-1));
+    uint64_t new_offset = offset;
+    if (_this->enable_shift)
+    {
+      new_offset = (offset >> _this->enable_shift);
+    }
 
     _this->trace.msg("Forwarding interleaved packet (port: %d, offset: 0x%x, size: 0x%x)\n", output_id, new_offset, loop_size);
 
