@@ -130,7 +130,8 @@ vp::IoReqStatus interleaver::req(vp::Block *__this, vp::IoReq *req)
     uint64_t new_offset = offset;
     if (_this->enable_shift)
     {
-      new_offset = (offset >> _this->enable_shift);
+      output_id = (offset >> (_this->interleaving_bits + _this->enable_shift)) & ((1 << _this->stage_bits) - 1);
+      new_offset = ((offset >> _this->enable_shift) & (-1ULL << _this->interleaving_bits)) | (offset & ((1ULL << _this->interleaving_bits) - 1));
     }
 
     _this->trace.msg("Forwarding interleaved packet (port: %d, offset: 0x%x, size: 0x%x)\n", output_id, new_offset, loop_size);
