@@ -160,6 +160,7 @@ private:
     vp::Signal<bool> io_req_denied;
 
     vp::Signal<bool> stalled;
+    uint64_t lsu_stall_start_cycle;
     vp::Signal<iss_reg_t> log_addr;
     vp::Signal<iss_reg_t> log_size;
     vp::Signal<bool> log_is_write;

@@ -107,6 +107,7 @@ namespace vp {
     // Set the latency of the request. The latency is relative to the current cycle.
     // It is only set if it is higher than the current latency.
     inline void set_latency(uint64_t latency) { this->latency = std::max(this->latency, latency); }
+    inline void reset_latency() { this->latency = 0; }
     inline uint64_t get_latency() { return this->latency; }
     inline void inc_latency(uint64_t incr) { this->latency += incr; }
 
@@ -182,6 +183,7 @@ namespace vp {
     int id;
     int initiator = -1;
     bool debug=false;
+    uint64_t cycle_stamp;
 
 
   private:

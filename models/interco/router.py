@@ -88,7 +88,8 @@ class Router(gvsoc.systree.Component):
         only when input packet size is smaller or equal to the bandwidth.
     """
     def __init__(self, parent: gvsoc.systree.Component, name: str, latency: int=0, bandwidth: int=0,
-            synchronous: bool=True, shared_rw_bandwidth: bool=False, max_input_pending_size=0):
+            nb_input_port: int=1, nb_output_port: int=1, synchronous: bool=True, shared_rw_bandwidth: bool=False, max_input_pending_size=0,
+            external_select: bool=False, special_mode: bool=False):
         super(Router, self).__init__(parent, name)
 
         # This will store the whole set of mappings and passed to model as a dictionary
@@ -99,7 +100,10 @@ class Router(gvsoc.systree.Component):
         self.add_property('max_input_pending_size', max_input_pending_size)
         # The number of input port is automatically increased each time i_INPUT is called if needed.
         # Set number of input ports to 1 by default because some models do not use i_INPUT yet.
-        self.add_property('nb_input_port', 1)
+        self.add_property('nb_input_port', nb_input_port)
+        self.add_property('nb_output_port', nb_output_port)
+        self.add_property('external_select', external_select)
+        self.add_property('special_mode', special_mode)
 
         self.add_sources(['interco/router/router_common.cpp'])
         if synchronous:

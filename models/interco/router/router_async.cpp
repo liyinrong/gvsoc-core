@@ -207,11 +207,13 @@ private:
     int64_t bandwidth;
     // Number of input ports
     int nb_input_port;
+    int nb_output_port;
     // Router latency, not yet implemented
     int latency;
     // Router channels. It has 1 channel when bandwidth is shared for read and writes, or 1 for read
     // and 1 for write if it is not shared
     std::vector<Channel *> channels;
+    std::vector<vp::MappingTreeEntry *> dummy_mappings;
     // Tree of mappings
     vp::MappingTree mapping_tree;
     // Gives the ID of the error mapping, the one returning an error when a request is matching
@@ -229,6 +231,8 @@ private:
     std::vector<std::string> mapping_names;
     // Mapping latencies
     std::vector<int> mapping_latency;
+    bool external_select = false;
+    bool special_mode;
 };
 
 
@@ -241,8 +245,11 @@ Router::Router(vp::ComponentConf &config)
     this->bandwidth = this->get_js_config()->get_int("bandwidth");
     this->latency = this->get_js_config()->get_int("latency");
     this->nb_input_port = this->get_js_config()->get_int("nb_input_port");
+    this->nb_output_port = this->get_js_config()->get_int("nb_output_port");
     this->shared_rw_bandwidth = this->get_js_config()->get_child_bool("shared_rw_bandwidth");
     this->max_input_pending_size = this->get_js_config()->get_child_int("max_input_pending_size");
+    this->external_select = this->get_js_config()->get_child_bool("external_select");
+    this->special_mode = this->get_js_config()->get_child_bool("special_mode");
     if (this->max_input_pending_size == 0)
     {
         // If no FIFO is specified, set to max to not have any limitation
@@ -259,38 +266,62 @@ Router::Router(vp::ComponentConf &config)
         this->new_slave_port(name, input, this);
     }
 
-    // Then mappings and output ports
-    js::Config *mappings = this->get_js_config()->get("mappings");
-    if (mappings != NULL)
+    if (this->external_select)
     {
-        int mapping_id = 0;
-        for (auto &mapping : mappings->get_childs())
+        this->dummy_mappings.resize(this->nb_output_port);
+        for (int i=0; i<this->nb_output_port; i++)
         {
-            js::Config *config = mapping.second;
-            std::string name = mapping.first;
-
-            this->mapping_tree.insert(mapping_id, name, config);
-
             vp::IoMaster *itf = new vp::IoMaster();
+            std::string name = i == 0 ? "output" : "output_" + std::to_string(i);
+            itf->set_resp_meth_muxed(&Router::response, i);
+            itf->set_grant_meth_muxed(&Router::grant, i);
             this->output_itfs.push_back(itf);
-            itf->set_resp_meth_muxed(&Router::response, mapping_id);
-            itf->set_grant_meth_muxed(&Router::grant, mapping_id);
             this->new_master_port(name, itf);
-
-            this->remove_offset.push_back(config->get_uint("remove_offset"));
-            this->add_offset.push_back(config->get_uint("add_offset"));
+            this->dummy_mappings[i] = new vp::MappingTreeEntry();
+            this->dummy_mappings[i]->id = i;
+            this->dummy_mappings[i]->base = 0;
+            this->dummy_mappings[i]->size = UINT32_MAX;
+            this->remove_offset.push_back(0);
+            this->add_offset.push_back(0);
             this->mapping_names.push_back(name);
-            this->mapping_latency.push_back(config->get_int("latency"));
-
-            if (name == "error")
+            this->mapping_latency.push_back(0);
+        }
+    }
+    else
+    {
+        // Then mappings and output ports
+        js::Config *mappings = this->get_js_config()->get("mappings");
+        if (mappings != NULL)
+        {
+            int mapping_id = 0;
+            for (auto &mapping : mappings->get_childs())
             {
-                this->error_id = mapping_id;
+                js::Config *config = mapping.second;
+                std::string name = mapping.first;
+
+                this->mapping_tree.insert(mapping_id, name, config);
+
+                vp::IoMaster *itf = new vp::IoMaster();
+                this->output_itfs.push_back(itf);
+                itf->set_resp_meth_muxed(&Router::response, mapping_id);
+                itf->set_grant_meth_muxed(&Router::grant, mapping_id);
+                this->new_master_port(name, itf);
+
+                this->remove_offset.push_back(config->get_uint("remove_offset"));
+                this->add_offset.push_back(config->get_uint("add_offset"));
+                this->mapping_names.push_back(name);
+                this->mapping_latency.push_back(config->get_int("latency"));
+
+                if (name == "error")
+                {
+                    this->error_id = mapping_id;
+                }
+
+                mapping_id++;
             }
 
-            mapping_id++;
+            this->mapping_tree.build();
         }
-
-        this->mapping_tree.build();
     }
 
     if (this->shared_rw_bandwidth)
@@ -351,32 +382,52 @@ void Channel::arbiter_handler(vp::Block *__this, vp::ClockEvent *event)
                 // get its mapping the first time when it is not yet initialized
                 if (!in->pending_mapping)
                 {
-                    in->pending_mapping = _this->top->mapping_tree.get(
-                        req->get_addr(), req->get_size(), req->get_is_write());
-
-                    if (in->pending_mapping->size > 0 && req->get_addr() + req->get_size() >
-                        in->pending_mapping->base + in->pending_mapping->size)
+                    if (_this->top->external_select)
                     {
-                        // Special case where the request will be sent to several outputs.
-                        // Initialize global counters to process it in multiple steps
-                        in->remaining_size = req->get_size();
-                        in->current_data = req->get_data();
-                        in->current_addr = req->get_addr();
-                        req->arg_push((void *)req->get_size());
-                        req->arg_push((void *)vp::IO_REQ_OK);
+                        uint64_t output_id = (uint64_t)req->arg_pop();
+                        if (output_id >= _this->top->nb_output_port)
+                        {
+                            _this->trace.fatal("Invalid output ID %ld\n", output_id);
+                        }
+                        else
+                        {
+                            in->pending_mapping = _this->top->dummy_mappings[output_id];
+                        }
+                    }
+                    else
+                    {
+                        in->pending_mapping = _this->top->mapping_tree.get(
+                            req->get_addr(), req->get_size(), req->get_is_write());
+
+                        if (in->pending_mapping->size > 0 && req->get_addr() + req->get_size() >
+                            in->pending_mapping->base + in->pending_mapping->size)
+                        {
+                            // Special case where the request will be sent to several outputs.
+                            // Initialize global counters to process it in multiple steps
+                            in->remaining_size = req->get_size();
+                            in->current_data = req->get_data();
+                            in->current_addr = req->get_addr();
+                            req->arg_push((void *)req->get_size());
+                            req->arg_push((void *)vp::IO_REQ_OK);
+                        }
                     }
                 }
 
                 vp::MappingTreeEntry *mapping = in->pending_mapping;
                 OutputPort *out = _this->entries[mapping->id];
                 // Check if the output we need is not already assigned a request
-                if (out->elected_input == NULL)
+                if (out->elected_input == NULL && out->stalled == false)
                 {
                     _this->trace.msg(vp::Trace::LEVEL_TRACE, "Elected input (req: %p, in: %d, out: %d)\n",
                         req, i, mapping->id);
 
                     // If not, store the request, it will be sent in the FSM event
                     out->elected_input = in;
+
+                    if (_this->top->special_mode)
+                    {
+                        req->get_resp_port()->grant(req);
+                    }
 
                     // Update now the input FIFO to let another request be accepted in the next
                     // cycle. This only works for requests smaller than bandwidth
@@ -468,7 +519,10 @@ void Channel::fsm_handler(vp::Block *__this, vp::ClockEvent *event)
                     in->stalled_signal = !in->denied_reqs.empty();
                     in->pending_reqs.push(denied_req);
                     in->pending_size += denied_req->get_size();
-                    denied_req->get_resp_port()->grant(denied_req);
+                    if (!_this->top->special_mode)
+                    {
+                        denied_req->get_resp_port()->grant(denied_req);
+                    }
                 }
 
                 vp::IoMaster *itf =_this->top->output_itfs[i];
@@ -617,7 +671,14 @@ vp::IoReqStatus Channel::handle_req(vp::IoReq *req, int port)
         in->pending_reqs.push(req);
         in->pending_size += req->get_size();
         this->arbiter_event.enqueue(0);
-        return vp::IO_REQ_PENDING;
+        if (this->top->special_mode)
+        {
+            return vp::IO_REQ_DENIED;
+        }
+        else
+        {
+            return vp::IO_REQ_PENDING;
+        }
     }
 }
 

@@ -31,6 +31,7 @@ namespace vp {
         friend class MappingTree;
 
     public:
+        MappingTreeEntry() {};
         MappingTreeEntry(int id, std::string name, js::Config *config);
         MappingTreeEntry(uint64_t base, MappingTreeEntry *left, MappingTreeEntry *right);
 

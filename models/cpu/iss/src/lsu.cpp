@@ -123,6 +123,7 @@ void Lsu::data_grant(vp::Block *__this, vp::IoReq *req)
     // The denied request is granted, we can now allow the core to do other accesses
     Lsu *_this = (Lsu *)__this;
     _this->io_req_denied = false;
+    _this->trace.msg("LSU stall ended (cycles: %ld)\n", _this->iss.top.clock.get_cycles() - _this->lsu_stall_start_cycle);
     _this->iss.exec.stalled_dec();
 #endif
 }
@@ -137,6 +138,10 @@ void Lsu::data_response(vp::Block *__this, vp::IoReq *req)
 #endif
 
     _this->trace.msg("Received data response (req: %p, stalled: %d)\n", req, iss->exec.stalled.get());
+    if (!req->get_is_write())
+    {
+        _this->trace.msg("Read latency: %ld\n", _this->iss.top.clock.get_cycles() - req->cycle_stamp);
+    }
 
     // First call the ISS to finish the instruction
 
@@ -196,6 +201,9 @@ int Lsu::data_req_aligned(iss_addr_t addr, uint8_t *data_ptr, uint8_t *memcheck_
     req->set_memcheck_data(memcheck_data);
 #endif
 
+    req->set_initiator(this->iss.csr.mhartid);
+    req->cycle_stamp = this->iss.top.clock.get_cycles();
+
     this->log_addr.set_and_release(addr);
     this->log_size.set_and_release(size);
     this->log_is_write.set_and_release(is_write);
@@ -226,7 +234,10 @@ int Lsu::data_req_aligned(iss_addr_t addr, uint8_t *data_ptr, uint8_t *memcheck_
         // it becomes available only after the latency has ellapsed
         this->free_req(req, this->iss.top.clock.get_cycles() + latency);
     #endif
-
+        if (!req->get_is_write())
+        {
+            this->trace.msg("Read latency: %ld\n", req->get_latency());
+        }
 
         return 0;
     }
@@ -263,6 +274,7 @@ int Lsu::data_req_aligned(iss_addr_t addr, uint8_t *data_ptr, uint8_t *memcheck_
         // In case the request is denied, make sure we don't allow any other access
         // until this request is granted
         this->io_req_denied = true;
+        this->lsu_stall_start_cycle = this->iss.top.clock.get_cycles();
         this->iss.exec.insn_stall();
     }
     else if (err == vp::IO_REQ_PENDING)

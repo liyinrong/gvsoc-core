@@ -34,10 +34,18 @@ inline vp::IoReq *Lsu::get_req()
     // responses with latency. The requests are sorted out, first one is the next one to be free.
     if (this->io_req_denied || this->io_req_first == NULL || *((int64_t *)this->io_req_first->arg_get(1)) > cycles)
     {
+        if (!this->stalled.get())
+        {
+            this->lsu_stall_start_cycle = cycles;
+        }
         this->stalled.set(true);
         return nullptr;
     }
 
+    if (this->stalled.get())
+    {
+        this->trace.msg("LSU stall ended (cycles: %ld)\n", cycles - this->lsu_stall_start_cycle);
+    }
     this->stalled.set(false);
 
     // Allocate first one, it will be put back in the queue when the access is fully done.
