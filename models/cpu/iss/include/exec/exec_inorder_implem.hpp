@@ -58,7 +58,7 @@ static inline iss_reg_t iss_exec_stalled_insn_fast(Iss *iss, iss_insn_t *insn, i
     // Only update if the register has not been invalidated
     if (latency > 0 && iss->regfile.scoreboard_reg_timestamp[insn->out_regs[0]] != -1)
     {
-        iss->regfile.scoreboard_reg_set_timestamp(insn->out_regs[0], latency + 1, -1);
+        iss->regfile.scoreboard_reg_set_timestamp(insn->out_regs[0], latency + 1, CSR_PCER_RAW_EXT_STALL);
     }
 #endif
 

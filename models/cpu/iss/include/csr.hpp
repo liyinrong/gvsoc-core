@@ -236,6 +236,7 @@ public:
 #if defined(CONFIG_GVSOC_ISS_SNITCH)
     iss_reg_t csr_trace;
     iss_reg_t stack_limit;
+    int64_t trace_start_cycle = 0;
 #endif
 
     iss_reg_t scratch0;

@@ -180,7 +180,7 @@ bool Iss::handle_req(iss_insn_t *insn, iss_reg_t pc, bool is_write)
     if (!this->insn.out_regs_fp[0] & this->insn.out_regs[0] != 0xFF)
     {
     #if defined(CONFIG_GVSOC_ISS_SCOREBOARD)
-        this->regfile.scoreboard_reg_set_timestamp(insn->out_regs[0], insn->latency, -1);
+        this->regfile.scoreboard_reg_set_timestamp(insn->out_regs[0], insn->latency, CSR_PCER_RAW_EXT_STALL);
     #endif
     }
 

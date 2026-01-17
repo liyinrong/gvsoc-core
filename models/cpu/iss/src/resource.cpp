@@ -55,7 +55,7 @@ iss_reg_t iss_resource_offload(Iss *iss, iss_insn_t *insn, iss_reg_t pc)
         int64_t latency_cycles = insn->resource_latency;
 
 #if defined(CONFIG_GVSOC_ISS_SCOREBOARD)
-        iss->regfile.scoreboard_reg_set_timestamp(insn->out_regs[0], latency_cycles, -1);
+        iss->regfile.scoreboard_reg_set_timestamp(insn->out_regs[0], latency_cycles, CSR_PCER_RAW_EXT_STALL);
 #endif
 
 #if defined(PIPELINE_STALL_THRESHOLD)

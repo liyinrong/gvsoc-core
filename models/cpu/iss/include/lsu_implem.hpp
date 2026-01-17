@@ -162,6 +162,7 @@ inline bool Lsu::load(iss_insn_t *insn, iss_addr_t addr, int size, int reg)
         }
     }
 
+    this->iss.timing.event_load_account(1);
     return false;
 }
 
@@ -290,6 +291,7 @@ inline bool Lsu::load_signed(iss_insn_t *insn, iss_addr_t addr, int size, int re
         }
     }
 
+    this->iss.timing.event_load_account(1);
     return false;
 }
 
@@ -371,6 +373,7 @@ inline bool Lsu::store(iss_insn_t *insn, iss_addr_t addr, int size, int reg)
         }
     }
 
+    this->iss.timing.event_store_account(1);
     return false;
 }
 
@@ -381,7 +384,7 @@ inline bool Lsu::load_perf(iss_insn_t *insn, iss_addr_t addr, int size, int reg)
     {
         return true;
     }
-    this->iss.timing.event_load_account(1);
+    // this->iss.timing.event_load_account(1);
     return this->load<T>(insn, addr, size, reg);
 }
 
@@ -398,7 +401,7 @@ inline bool Lsu::load_signed_perf(iss_insn_t *insn, iss_addr_t addr, int size, i
     {
         return true;
     }
-    this->iss.timing.event_load_account(1);
+    // this->iss.timing.event_load_account(1);
     return this->load_signed<T>(insn, addr, size, reg);
 }
 
@@ -409,7 +412,7 @@ inline bool Lsu::store_perf(iss_insn_t *insn, iss_addr_t addr, int size, int reg
     {
         return true;
     }
-    this->iss.timing.event_store_account(1);
+    // this->iss.timing.event_store_account(1);
     return this->store<T>(insn, addr, size, reg);
 }
 
