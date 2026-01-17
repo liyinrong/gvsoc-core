@@ -122,6 +122,7 @@ void Lsu::data_grant(vp::Block *__this, vp::IoReq *req)
 #ifdef CONFIG_GVSOC_ISS_LSU_NB_OUTSTANDING
     // The denied request is granted, we can now allow the core to do other accesses
     Lsu *_this = (Lsu *)__this;
+    _this->iss.timing.event_account(CSR_PCER_PORT_STALL, _this->iss.top.clock.get_cycles() - _this->io_req_last_denied_cycle);
     _this->io_req_denied = false;
     _this->iss.exec.stalled_dec();
 #endif
@@ -170,6 +171,7 @@ int Lsu::data_req_aligned(iss_addr_t addr, uint8_t *data_ptr, uint8_t *memcheck_
         // If there is no more request, returns DENIED, as this will have the same effect of
         // stalling the core
         req_id = -1;
+        this->iss.timing.event_account(CSR_PCER_LSU_STALL, 1);
         return vp::IO_REQ_DENIED;
     }
 #ifdef CONFIG_GVSOC_ISS_LSU_NB_OUTSTANDING
@@ -271,6 +273,7 @@ int Lsu::data_req_aligned(iss_addr_t addr, uint8_t *data_ptr, uint8_t *memcheck_
     {
         // In case the request is denied, make sure we don't allow any other access
         // until this request is granted
+        this->io_req_last_denied_cycle = this->iss.top.clock.get_cycles();
         this->io_req_denied = true;
         this->iss.exec.insn_stall();
     }
@@ -504,6 +507,7 @@ bool Lsu::atomic(iss_insn_t *insn, iss_addr_t addr, int size, int reg_in, int re
     if (req == NULL)
     {
         // If there is no more request, returns true to stall the core stall the core
+        this->iss.timing.event_account(CSR_PCER_LSU_STALL, 1);
         return true;
     }
 
@@ -610,6 +614,7 @@ bool Lsu::atomic(iss_insn_t *insn, iss_addr_t addr, int size, int reg_in, int re
         {
             // In case the request is denied, make sure we don't allow any other access
             // until this request is granted
+            this->io_req_last_denied_cycle = this->iss.top.clock.get_cycles();
             this->io_req_denied = true;
             this->iss.exec.insn_stall();
         }

@@ -197,7 +197,7 @@ void Prefetcher::fetch_response(vp::Block *__this, vp::IoReq *req)
 
     // Since a pending response can also include a latency, we need to account it
     // as a stall
-    _this->iss.timing.stall_fetch_account(req->get_latency());
+    _this->iss.timing.event_account(CSR_PCER_IMISS, _this->iss.top.clock.get_cycles() - _this->prefetch_stall_cycle);
 
     // Now unstall the core and call the fetch callback so that we can continue the refill
     // operation

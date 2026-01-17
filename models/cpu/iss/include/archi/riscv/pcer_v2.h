@@ -51,7 +51,12 @@
 #define CSR_PCER_APU_WB      16
 #endif
 
-#define CSR_PCER_NB_EVENTS               21
+#define CSR_PCER_RAW_STALL  21
+#define CSR_PCER_LSU_STALL  22
+#define CSR_PCER_PORT_STALL 23
+#define CSR_PCER_RAW_EXT_STALL 24
+
+#define CSR_PCER_NB_EVENTS               25
 #if defined(CONFIG_GVSOC_ISS_EXTERNAL_PCCR)
 #define CSR_PCER_FIRST_EXTERNAL_EVENTS   12
 #define CSR_PCER_NB_EXTERNAL_EVENTS      5

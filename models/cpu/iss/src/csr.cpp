@@ -170,7 +170,7 @@ void Csr::build()
 
     // This has been remove to avoid duplication with CSR declared by pulp-open ISS wrapper
     // If other cores are using it, they should be moved to a dediacted wrapper.
-    #if 0
+    #if 1
     this->declare_pcer(CSR_PCER_CYCLES, "Cycles", "Count the number of cycles the core was running");
     this->declare_pcer(CSR_PCER_INSTR, "instr", "Count the number of instructions executed");
     this->declare_pcer(CSR_PCER_LD_STALL, "ld_stall", "Number of load use hazards");
@@ -189,6 +189,10 @@ void Csr::build()
     this->declare_pcer(CSR_PCER_ST_EXT_CYC, "st_ext_cycles", "Cycles used for memory stores to EXT. Every non-TCDM access is considered external");
     this->declare_pcer(CSR_PCER_TCDM_CONT, "tcdm_cont", "Cycles wasted due to TCDM/log-interconnect contention");
 #endif
+    this->declare_pcer(CSR_PCER_RAW_STALL, "raw_stall", "Number of stalls due to RAW hazards");
+    this->declare_pcer(CSR_PCER_LSU_STALL, "lsu_stall", "Number of stalls due to full LSU");
+    this->declare_pcer(CSR_PCER_PORT_STALL, "port_stall", "Number of stalls due to port contention");
+    this->declare_pcer(CSR_PCER_RAW_EXT_STALL, "raw_ext_stall", "Number of stalls due to RAW hazards that are not caused by load and store");
 
     this->iss.top.traces.new_trace_event("pcer_cycles", &this->iss.timing.pcer_trace_event[0], 1);
     this->iss.top.traces.new_trace_event("pcer_instr", &this->iss.timing.pcer_trace_event[1], 1);
@@ -608,9 +612,54 @@ static bool stack_end_read(Iss *iss, iss_reg_t *value)
 
 #ifdef CONFIG_GVSOC_ISS_SNITCH
 
+static bool perfCounters_read(Iss *iss, int reg, iss_reg_t *value);
+static bool perfCounters_write(Iss *iss, int reg, iss_reg_t value);
+
 static bool trace_write(Iss *iss, iss_reg_t value)
 {
     iss->csr.csr_trace = value;
+    if (value == 0)
+    {
+        iss_reg_t csr_pcmr_value;
+        perfCounters_read(iss, CSR_PCMR, &csr_pcmr_value);
+        if (csr_pcmr_value & 1 == 1)
+        {
+            std::stringstream ss;
+            ss << "pcer_" << std::hex << iss->csr.mhartid << ".log";
+            std::string path = ss.str();
+            std::string mode = "a";
+            FILE *file = fopen(path.c_str(), mode.c_str());
+            if (file == NULL)
+            {
+                iss->csr.trace.fatal("Unable to open PCER log file: %s\n", path.c_str());
+            }
+            else
+            {
+                iss_reg_t value;
+                fprintf(file, "PCER values at timestamp %ld ps, duration %ld cycles\n", iss->top.time.get_time(), iss->top.clock.get_cycles() - iss->csr.trace_start_cycle);
+                fprintf(file, "Index; Name; Description; Value\n");
+                for (int i = 0; i < 31; i++)
+                {
+                    if (iss->syscalls.pcer_info[i].name != "")
+                    {
+                        iss_reg_t csr_pccr_value;
+                        perfCounters_read(iss, CSR_PCCR(i), &csr_pccr_value);
+                        fprintf(file, "%d; %s; %s; %" PRIdREG "\n", i, iss->syscalls.pcer_info[i].name.c_str(), iss->syscalls.pcer_info[i].help.c_str(), csr_pccr_value);
+                    }
+                }
+                fclose(file);
+            }
+
+        }
+        perfCounters_write(iss, CSR_PCMR, 0);
+    }
+    else
+    {
+        perfCounters_write(iss, CSR_PCER, 0xffffffff);
+        perfCounters_write(iss, CSR_PCCR(CSR_NB_PCCR), 0);
+        perfCounters_write(iss, CSR_PCMR, 1);
+        iss->csr.trace_start_cycle = iss->top.clock.get_cycles();
+    }
     return false;
 }
 

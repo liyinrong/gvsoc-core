@@ -80,6 +80,7 @@ inline void Prefetcher::handle_stall(void (*callback)(Prefetcher *), iss_insn_t 
     this->fetch_stall_callback = callback;
     // Remember the current instruction since the core may switch to a new one while the prefetch buffer
     // is being refilled
+    this->prefetch_stall_cycle = iss->top.clock.get_cycles();
     this->prefetch_insn = current_insn;
     // Stall the core
     iss->exec.stalled_inc();

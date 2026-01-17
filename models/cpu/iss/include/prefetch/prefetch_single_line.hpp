@@ -91,6 +91,8 @@ private:
     // Pending opcode, used by callback when the instruction is split on 2 lines
     iss_opcode_t fetch_stall_opcode;
 
+    uint64_t prefetch_stall_cycle;
+
     // Prefetcher trace
     vp::Trace trace;
 

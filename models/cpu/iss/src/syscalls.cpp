@@ -413,13 +413,13 @@ void Syscalls::handle_riscv_ebreak()
     case 0x101:
     {
         iss_reg_t args[1];
-        if (this->user_access(this->iss.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
-        {
-            this->iss.regfile.regs[10] = -1;
-            return;
-        }
+        // if (this->user_access(this->iss.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+        // {
+        //     this->iss.regfile.regs[10] = -1;
+        //     return;
+        // }
 
-        iss_csr_write(&this->iss, CSR_PCER, args[0]);
+        iss_csr_write(&this->iss, CSR_PCER, 0xffffffff);
 
         break;
     }
@@ -478,13 +478,17 @@ void Syscalls::handle_riscv_ebreak()
     case 0x106:
     {
         iss_reg_t args[2];
-        if (this->user_access(this->iss.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
-        {
-            this->iss.regfile.regs[10] = -1;
-            return;
-        }
-        std::string path = this->read_user_string(args[0]);
-        std::string mode = this->read_user_string(args[1]);
+        // if (this->user_access(this->iss.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+        // {
+        //     this->iss.regfile.regs[10] = -1;
+        //     return;
+        // }
+        // std::string path = this->read_user_string(args[0]);
+        std::stringstream ss;
+        ss << "pcer_" << std::hex << this->iss.csr.mhartid << ".log";
+        std::string path = ss.str();
+        // std::string mode = this->read_user_string(args[1]);
+        std::string mode = "a";
         if (path == "")
         {
             this->trace.force_warning("Invalid user string while opening trace (addr: 0x%x)\n", args[0]);

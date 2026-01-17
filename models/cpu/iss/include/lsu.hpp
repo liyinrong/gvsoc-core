@@ -157,6 +157,7 @@ private:
     int64_t pending_latency;
     // True if the last request has been denied. The core must not send another request until
     // the last request has been granted
+    uint64_t io_req_last_denied_cycle = 0;
     vp::Signal<bool> io_req_denied;
 
     vp::Signal<bool> stalled;

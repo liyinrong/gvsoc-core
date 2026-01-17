@@ -121,7 +121,7 @@ static inline iss_reg_t div_exec(Iss *iss, iss_insn_t *insn, iss_reg_t pc)
         }
     }
 #ifdef CONFIG_GVSOC_ISS_SCOREBOARD
-    iss->regfile.scoreboard_reg_set_timestamp(REG_OUT(0), cycles, -1);
+    iss->regfile.scoreboard_reg_set_timestamp(REG_OUT(0), cycles, CSR_PCER_RAW_EXT_STALL);
 #else
     iss->timing.stall_insn_dependency_account(cycles);
 #endif
@@ -170,7 +170,7 @@ static inline iss_reg_t divu_exec(Iss *iss, iss_insn_t *insn, iss_reg_t pc)
         cycles = divider_shift + 5;
     }
 #ifdef CONFIG_GVSOC_ISS_SCOREBOARD
-    iss->regfile.scoreboard_reg_set_timestamp(REG_OUT(0), cycles, -1);
+    iss->regfile.scoreboard_reg_set_timestamp(REG_OUT(0), cycles, CSR_PCER_RAW_EXT_STALL);
 #else
     iss->timing.stall_insn_dependency_account(cycles);
 #endif
@@ -224,7 +224,7 @@ static inline iss_reg_t rem_exec(Iss *iss, iss_insn_t *insn, iss_reg_t pc)
         }
     }
 #ifdef CONFIG_GVSOC_ISS_SCOREBOARD
-    iss->regfile.scoreboard_reg_set_timestamp(REG_OUT(0), cycles, -1);
+    iss->regfile.scoreboard_reg_set_timestamp(REG_OUT(0), cycles, CSR_PCER_RAW_EXT_STALL);
 #else
     iss->timing.stall_insn_dependency_account(cycles);
 #endif
@@ -274,7 +274,7 @@ static inline iss_reg_t remu_exec(Iss *iss, iss_insn_t *insn, iss_reg_t pc)
         cycles = divider_shift + 5;
     }
 #ifdef CONFIG_GVSOC_ISS_SCOREBOARD
-    iss->regfile.scoreboard_reg_set_timestamp(REG_OUT(0), cycles, -1);
+    iss->regfile.scoreboard_reg_set_timestamp(REG_OUT(0), cycles, CSR_PCER_RAW_EXT_STALL);
 #else
     iss->timing.stall_insn_dependency_account(cycles);
 #endif

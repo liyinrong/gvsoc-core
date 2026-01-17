@@ -196,6 +196,7 @@ void Exec::exec_instr(vp::Block *__this, vp::ClockEvent *event)
             if (iss->regfile.scoreboard_reg_timestamp[insn->in_regs[i]] == -1)
             {
                 iss->exec.trace.msg(vp::Trace::LEVEL_TRACE, "Stalling due to input register dependency (reg: %d)\n", insn->in_regs[i]);
+                iss->timing.event_account(CSR_PCER_RAW_STALL, 1);
                 return;
             }
         }
@@ -350,7 +351,8 @@ void Exec::exec_instr_check_all(vp::Block *__this, vp::ClockEvent *event)
         {
             if (iss->regfile.scoreboard_reg_timestamp[insn->in_regs[i]] == -1)
             {
-                _this->trace.msg(vp::Trace::LEVEL_TRACE, "Stalling due to register dependency (reg: %d)\n", insn->in_regs[i]);
+                _this->trace.msg(vp::Trace::LEVEL_TRACE, "Stalling due to input register dependency (reg: %d)\n", insn->in_regs[i]);
+                _this->iss.timing.event_account(CSR_PCER_RAW_STALL, 1);
                 return;
             }
         }
